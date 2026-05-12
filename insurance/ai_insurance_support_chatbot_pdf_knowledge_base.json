@@ -1,0 +1,429 @@
+{
+  "name": "AI Insurance Support Chatbot with PDF Knowledge Base",
+  "nodes": [
+    {
+      "id": "792d5e2a-056d-4103-8921-eb4ffe98a9b3",
+      "name": "Sticky Note - Project Overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -760,
+        -280
+      ],
+      "parameters": {
+        "color": 7,
+        "width": 620,
+        "height": 520,
+        "content": "## AI Insurance Support Chatbot with PDF Knowledge Base\n\nThis workflow is converted from a PDF extraction template into an insurance support chatbot.\n\n**Demo flow**\n1. User question is provided in the Set node.\n2. Insurance PDF knowledge base is downloaded from Google Drive.\n3. PDF is converted to base64.\n4. Gemini reads the PDF and answers the user question based only on the PDF.\n5. JSON output is parsed.\n6. If handoff is required, support receives an email.\n7. Chat log / answer record is prepared for Google Sheets or database.\n\nReplace the Google Drive file ID with your own insurance FAQ / policy / claim guideline PDF."
+      }
+    },
+    {
+      "id": "eb400ad1-cdfe-472a-a6b8-34497952f7c4",
+      "name": "Manual Trigger - Test Chatbot",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "25ab8be6-6656-4750-b558-bf39eb92badd",
+      "name": "Set User Question and Support Prompt",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        160,
+        0
+      ],
+      "parameters": {
+        "options": {},
+        "assignments": {
+          "assignments": [
+            {
+              "id": "6caafa91-5191-409a-adf1-c1f44e0861a8",
+              "name": "user_question",
+              "type": "string",
+              "value": "What documents do I need to submit for an insurance claim?"
+            },
+            {
+              "id": "5cc67e03-2aa0-495b-8c05-832d29a175ea",
+              "name": "client_email",
+              "type": "string",
+              "value": "client@example.com"
+            },
+            {
+              "id": "7358aecd-ef14-430d-8908-3a6bf24903fe",
+              "name": "support_email",
+              "type": "string",
+              "value": "support@company.com"
+            },
+            {
+              "id": "c0246cb3-733c-4c70-9c40-5b2335c52af7",
+              "name": "prompt",
+              "type": "string",
+              "value": "You are an AI Insurance Support Assistant.\n\nYour role is to answer client questions based only on the provided insurance PDF knowledge base.\n\nThe PDF knowledge base may contain information about:\n- Insurance claim submission process\n- Required claim documents\n- Medical leave certificate requirements\n- Doctor confirmation letter requirements\n- X-ray confirmation letter and X-ray copy requirements\n- Insurance doctor review process\n- 7-day medical document review period\n- Agent approval process\n- Finance payment preparation\n- Bank transfer claim terms and conditions\n- Support team responsibilities\n- Client notification process\n- Claim status explanation\n- FAQ and policy guidelines\n\nImportant rules:\n- Answer only using information found in the PDF knowledge base.\n- Do not invent policy rules, claim amounts, timelines, or approval conditions.\n- If the PDF does not contain the answer, say that the information is not available in the provided document.\n- Do not approve or reject insurance claims.\n- Do not give legal, financial, or medical advice.\n- Do not promise payment completion.\n- Do not provide exact payment dates unless the PDF clearly states them.\n- Keep answers clear, polite, and easy for clients to understand.\n- If the client asks about personal claim status, ask them to provide their claim reference number and contact support or agent.\n- If the question is urgent or requires human decision, set handoff_required to Yes.\n\nUser question:\n{{ $json.user_question }}\n\nReturn valid JSON only. Do not include markdown. Do not include explanation outside JSON.\n\nUse this exact JSON structure:\n{\n  \"answer\": \"\",\n  \"source_based\": \"Yes/No\",\n  \"missing_information\": \"\",\n  \"recommended_next_step\": \"\",\n  \"handoff_required\": \"Yes/No\",\n  \"handoff_reason\": \"\",\n  \"support_summary\": \"\"\n}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "cd8d2c50-ebb1-4ee6-b575-c7c54b9b1d8f",
+      "name": "Google Drive - Download Insurance PDF Knowledge Base",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        420,
+        0
+      ],
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "REPLACE_WITH_YOUR_GOOGLE_DRIVE_PDF_FILE_ID",
+          "cachedResultName": "insurance_claim_support_knowledge_base.pdf"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "8a4566cd-498a-42b7-9af7-2733ab44d052",
+      "name": "Extract PDF to Base64",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {
+        "operation": "binaryToPropery",
+        "options": {}
+      }
+    },
+    {
+      "id": "8c41791a-8e16-4bae-9156-125159b843ed",
+      "name": "Gemini - Answer from PDF Knowledge Base",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        920,
+        0
+      ],
+      "parameters": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent",
+        "method": "POST",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"contents\": [\n    {\n      \"parts\": [\n        {\n          \"inline_data\": {\n            \"mime_type\": \"application/pdf\",\n            \"data\": \"{{ $json.data }}\"\n          }\n        },\n        {\n          \"text\": \"{{ $('Set User Question and Support Prompt').item.json.prompt }}\"\n        }\n      ]\n    }\n  ],\n  \"generationConfig\": {\n    \"responseMimeType\": \"application/json\"\n  }\n}",
+        "options": {}
+      }
+    },
+    {
+      "id": "1713163d-d8a4-46be-a2f1-ec74f6aa6154",
+      "name": "Parse Support Chatbot JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1180,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const input = $json;\nlet raw = '';\n\nif (input.candidates?.[0]?.content?.parts?.[0]?.text) {\n  raw = input.candidates[0].content.parts[0].text;\n} else if (input.text) {\n  raw = input.text;\n} else if (input.output) {\n  raw = input.output;\n} else {\n  raw = JSON.stringify(input);\n}\n\nconst cleaned = String(raw)\n  .replace(/```json/g, '')\n  .replace(/```/g, '')\n  .trim();\n\nlet data;\ntry {\n  data = JSON.parse(cleaned);\n} catch (error) {\n  throw new Error('AI output is not valid JSON: ' + error.message + '\\nRaw output:\\n' + cleaned);\n}\n\nreturn [{\n  json: {\n    user_question: $('Set User Question and Support Prompt').item.json.user_question,\n    client_email: $('Set User Question and Support Prompt').item.json.client_email,\n    support_email: $('Set User Question and Support Prompt').item.json.support_email,\n    answer: data.answer || '',\n    source_based: data.source_based || 'No',\n    missing_information: data.missing_information || '',\n    recommended_next_step: data.recommended_next_step || '',\n    handoff_required: data.handoff_required || 'No',\n    handoff_reason: data.handoff_reason || '',\n    support_summary: data.support_summary || '',\n    created_at: new Date().toISOString()\n  }\n}];"
+      }
+    },
+    {
+      "id": "bcf6fb9d-35b1-42b3-8e2a-a9df573e9e00",
+      "name": "IF Human Handoff Required?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1440,
+        0
+      ],
+      "parameters": {
+        "options": {},
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "5ce1a2f0-7028-4067-a92f-db0f4779956d",
+              "leftValue": "={{ $json.handoff_required }}",
+              "rightValue": "Yes",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "6d3387b5-ad1d-48c1-8a2f-6bd864a1ce35",
+      "name": "Email Support - Handoff Required",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1700,
+        -120
+      ],
+      "parameters": {
+        "fromEmail": "no-reply@company.com",
+        "toEmail": "={{ $json.support_email }}",
+        "subject": "=AI Support Handoff Required",
+        "text": "=Dear Support Team,\n\nThe AI Insurance Support Chatbot could not fully answer the user question from the PDF knowledge base.\n\nUser Question:\n{{ $json.user_question }}\n\nAI Answer:\n{{ $json.answer }}\n\nHandoff Reason:\n{{ $json.handoff_reason }}\n\nRecommended Next Step:\n{{ $json.recommended_next_step }}\n\nSupport Summary:\n{{ $json.support_summary }}\n\nClient Email:\n{{ $json.client_email }}\n\nThank you."
+      }
+    },
+    {
+      "id": "a4e45d7b-9a6d-4110-a544-9f90fe444f65",
+      "name": "Prepare Chatbot Response to User",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1700,
+        140
+      ],
+      "parameters": {
+        "options": {},
+        "assignments": {
+          "assignments": [
+            {
+              "id": "433d51e7-da83-465b-b82f-199ed46fc4e5",
+              "name": "response_to_user",
+              "type": "string",
+              "value": "={{ $json.answer + \"\n\nNext step: \" + $json.recommended_next_step }}"
+            },
+            {
+              "id": "ee24040f-e104-4456-b51b-06de4cc142b9",
+              "name": "user_question",
+              "type": "string",
+              "value": "={{ $json.user_question }}"
+            },
+            {
+              "id": "f0ba97f0-93bf-4fcd-9502-62829e2bf77d",
+              "name": "source_based",
+              "type": "string",
+              "value": "={{ $json.source_based }}"
+            },
+            {
+              "id": "ca5bacf6-30bf-4b0c-9a0f-afbc84274cbe",
+              "name": "handoff_required",
+              "type": "string",
+              "value": "={{ $json.handoff_required }}"
+            },
+            {
+              "id": "f1263637-412a-4116-b5ba-6b521b17301c",
+              "name": "created_at",
+              "type": "string",
+              "value": "={{ $json.created_at }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "d4eb3f1f-3cfd-457d-9d7a-6cf90aaa1219",
+      "name": "Prepare Chat Log Record",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1960,
+        0
+      ],
+      "parameters": {
+        "options": {},
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d97693c6-f866-4ea3-bc50-a300928d2542",
+              "name": "timestamp",
+              "type": "string",
+              "value": "={{ $json.created_at }}"
+            },
+            {
+              "id": "c4988991-5daf-4a7a-847c-f736f984cc45",
+              "name": "user_question",
+              "type": "string",
+              "value": "={{ $json.user_question }}"
+            },
+            {
+              "id": "b71d82b6-adaf-4b53-b09b-b3a9f6563497",
+              "name": "ai_answer",
+              "type": "string",
+              "value": "={{ $json.answer || $json.response_to_user }}"
+            },
+            {
+              "id": "f0dd4290-7271-4e8e-aba6-920e8927b66f",
+              "name": "source_based",
+              "type": "string",
+              "value": "={{ $json.source_based }}"
+            },
+            {
+              "id": "7fb5251c-abf6-4368-a9e1-cfc86e06f733",
+              "name": "handoff_required",
+              "type": "string",
+              "value": "={{ $json.handoff_required }}"
+            },
+            {
+              "id": "935a4925-945a-4d4c-95a9-14939b76d89b",
+              "name": "handoff_reason",
+              "type": "string",
+              "value": "={{ $json.handoff_reason }}"
+            },
+            {
+              "id": "e53ec41c-25f2-4efc-9c40-87bc0e56105d",
+              "name": "recommended_next_step",
+              "type": "string",
+              "value": "={{ $json.recommended_next_step }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "38fdac8f-af8f-4ea5-b100-693c60222608",
+      "name": "Sticky Note - How to Use",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        300,
+        -260
+      ],
+      "parameters": {
+        "color": 5,
+        "width": 760,
+        "height": 210,
+        "content": "## Setup required\n\n1. Replace `REPLACE_WITH_YOUR_GOOGLE_DRIVE_PDF_FILE_ID` in the Google Drive node.\n2. Set your Google Drive credential.\n3. Set your Gemini / Google PaLM API credential in the HTTP Request node.\n4. To use real chat, replace Manual Trigger + Set User Question with Chat Trigger or Webhook.\n5. For portfolio demo, test using the sample question in the Set node."
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manual Trigger - Test Chatbot": {
+      "main": [
+        [
+          {
+            "node": "Set User Question and Support Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set User Question and Support Prompt": {
+      "main": [
+        [
+          {
+            "node": "Google Drive - Download Insurance PDF Knowledge Base",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive - Download Insurance PDF Knowledge Base": {
+      "main": [
+        [
+          {
+            "node": "Extract PDF to Base64",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract PDF to Base64": {
+      "main": [
+        [
+          {
+            "node": "Gemini - Answer from PDF Knowledge Base",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini - Answer from PDF Knowledge Base": {
+      "main": [
+        [
+          {
+            "node": "Parse Support Chatbot JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Support Chatbot JSON": {
+      "main": [
+        [
+          {
+            "node": "IF Human Handoff Required?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Human Handoff Required?": {
+      "main": [
+        [
+          {
+            "node": "Email Support - Handoff Required",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Chatbot Response to User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Support - Handoff Required": {
+      "main": [
+        [
+          {
+            "node": "Prepare Chat Log Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Chatbot Response to User": {
+      "main": [
+        [
+          {
+            "node": "Prepare Chat Log Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "f6ca015c-4b7b-42c7-a9d4-ad7d14a30bc0",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

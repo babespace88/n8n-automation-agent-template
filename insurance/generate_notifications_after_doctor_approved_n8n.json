@@ -1,0 +1,305 @@
+{
+  "name": "Generate Notifications After Doctor Approved - Medical Document Review Handoff",
+  "nodes": [
+    {
+      "id": "170328fa-5075-4d8e-b675-4104e3a88969",
+      "name": "Project Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -520,
+        -300
+      ],
+      "parameters": {
+        "color": 7,
+        "width": 520,
+        "height": 360,
+        "content": "## Generate Notifications After Doctor Approved\n\nThis workflow is converted from the uploaded customer support issue automation idea into an insurance medical review notification workflow.\n\nFlow:\n1. Doctor submits approved review decision\n2. IF decision is Approved\n3. Generate notifications for Support and Agent\n4. Support receives client notification draft\n5. Save audit record\n\nUse this as Project 3B for Medical Document Review Handoff Automation."
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "ddc7cc4d-bd53-4fb6-bca3-18cb5b7c814f",
+      "name": "Credentials Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1040,
+        -240
+      ],
+      "parameters": {
+        "color": 2,
+        "width": 360,
+        "height": 230,
+        "content": "## Set Credentials\n\nAfter importing, set your own credentials for:\n- Gmail / Email nodes\n- Google Sheets node, if used\n\nReplace demo emails:\n- support@company.com\n- agent@company.com"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "5e81aab5-4f18-4972-b0d1-ed1a7ca69f5f",
+      "name": "Manual Trigger - Doctor Approved",
+      "type": "n8n-nodes-base.manualTrigger",
+      "position": [
+        -220,
+        120
+      ],
+      "parameters": {},
+      "typeVersion": 1
+    },
+    {
+      "id": "65b8d450-a9e7-4a9b-9669-1979b8ae1029",
+      "name": "Set Doctor Review Decision Data",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        20,
+        120
+      ],
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      client_name: \"Aisyah Binti Rahman\",\n      client_email: \"aisyahrahman@email.com\",\n      policy_number: \"POL-INS-2026-00981\",\n      claim_reference_number: \"CLM-2026-00452\",\n      doctor_name: \"Dr. Amir Hakim\",\n      doctor_review_decision: \"Approved\",\n      doctor_review_date: \"2026-05-18\",\n      doctor_review_notes: \"Medical documents reviewed and accepted for claim processing.\",\n      hospital_or_clinic: \"KPJ Specialist Hospital\",\n      treatment_date: \"2026-05-05\",\n      medical_leave_duration: \"6 days\",\n      xray_review_status: \"Not Applicable\",\n      support_email: \"support@company.com\",\n      agent_email: \"agent@company.com\"\n    }\n  }\n];"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "5764e5a8-2147-4579-ab73-5b3cbb7ea8cb",
+      "name": "IF Doctor Approved?",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        260,
+        120
+      ],
+      "parameters": {
+        "options": {},
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "6443adc2-cee0-45a4-b4a1-edf11f036257",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "leftValue": "={{ $json.doctor_review_decision }}",
+              "rightValue": "Approved"
+            }
+          ]
+        }
+      },
+      "typeVersion": 2.2
+    },
+    {
+      "id": "c08a3f40-5059-4101-bee8-2ce14ee8d51d",
+      "name": "Generate Notifications After Doctor Approved",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        540,
+        40
+      ],
+      "parameters": {
+        "jsCode": "const input = $json;\n\nconst clientName = input.client_name || \"\";\nconst clientEmail = input.client_email || \"\";\nconst policyNumber = input.policy_number || \"\";\nconst claimRef = input.claim_reference_number || \"\";\nconst doctorName = input.doctor_name || \"\";\nconst decision = input.doctor_review_decision || \"\";\nconst reviewDate = input.doctor_review_date || \"\";\nconst notes = input.doctor_review_notes || \"\";\nconst hospital = input.hospital_or_clinic || \"\";\nconst treatmentDate = input.treatment_date || \"\";\nconst medicalLeaveDuration = input.medical_leave_duration || \"\";\nconst xrayStatus = input.xray_review_status || \"Unclear\";\nconst supportEmail = input.support_email || \"support@company.com\";\nconst agentEmail = input.agent_email || \"agent@company.com\";\n\nconst supportSubject = `Insurance Doctor Review Approved - ${claimRef}`;\n\nconst clientNotificationSubjectDraft = `Medical Document Review Completed - ${claimRef}`;\n\nconst clientNotificationBodyDraft = `Dear ${clientName},\n\nWe would like to inform you that the medical document review for your insurance claim has been completed.\n\nClaim Reference Number:\n${claimRef}\n\nThe submitted medical documents have been reviewed and approved by the insurance doctor.\n\nYour claim will proceed to the next insurance processing stage according to company procedures.\n\nPlease note that this notification does not confirm payment completion. Any further updates will be provided by the relevant insurance team.\n\nThank you.\n\nSupport Team`;\n\nconst supportBody = `Dear Support Team,\n\nThe insurance doctor has approved the medical document review for the following insurance claim.\n\nClaim Reference Number:\n${claimRef}\n\nClient Name:\n${clientName}\n\nClient Email:\n${clientEmail}\n\nPolicy Number:\n${policyNumber}\n\nDoctor Name:\n${doctorName}\n\nDoctor Review Decision:\n${decision}\n\nDoctor Review Date:\n${reviewDate}\n\nDoctor Review Notes:\n${notes}\n\nHospital / Clinic:\n${hospital}\n\nTreatment Date:\n${treatmentDate}\n\nMedical Leave Duration:\n${medicalLeaveDuration}\n\nX-ray Review Status:\n${xrayStatus}\n\nNext Action:\nPlease create and send a new notification to the client informing them that the medical document review has been completed and approved by the insurance doctor.\n\nClient Notification Subject Draft:\n${clientNotificationSubjectDraft}\n\nClient Notification Body Draft:\n${clientNotificationBodyDraft}\n\nThank you.`;\n\nconst agentSubject = `Medical Review Approved by Insurance Doctor - ${claimRef}`;\n\nconst agentBody = `Dear Insurance Agent,\n\nThe insurance doctor has approved the medical document review for this claim.\n\nClaim Reference Number:\n${claimRef}\n\nClient Name:\n${clientName}\n\nPolicy Number:\n${policyNumber}\n\nDoctor Name:\n${doctorName}\n\nDoctor Review Decision:\n${decision}\n\nDoctor Review Date:\n${reviewDate}\n\nDoctor Review Notes:\n${notes}\n\nHospital / Clinic:\n${hospital}\n\nTreatment Date:\n${treatmentDate}\n\nMedical Leave Duration:\n${medicalLeaveDuration}\n\nX-ray Review Status:\n${xrayStatus}\n\nThe claim may proceed to the next insurance processing stage according to company procedure.\n\nThank you.`;\n\nconst auditNote = `Medical document review for claim ${claimRef} was approved by ${doctorName} on ${reviewDate}. Support and agent notifications were generated. Support is responsible for sending a new notification to the client.`;\n\nreturn [\n  {\n    json: {\n      doctor_review_approval_summary: {\n        client_name: clientName,\n        client_email: clientEmail,\n        policy_number: policyNumber,\n        claim_reference_number: claimRef,\n        doctor_name: doctorName,\n        doctor_review_decision: decision,\n        doctor_review_date: reviewDate,\n        doctor_review_notes: notes,\n        hospital_or_clinic: hospital,\n        treatment_date: treatmentDate,\n        medical_leave_duration: medicalLeaveDuration,\n        xray_review_status: xrayStatus\n      },\n      support_email: supportEmail,\n      agent_email: agentEmail,\n      support_notification_subject: supportSubject,\n      support_notification_body: supportBody,\n      agent_notification_subject: agentSubject,\n      agent_notification_body: agentBody,\n      client_notification_subject_draft: clientNotificationSubjectDraft,\n      client_notification_body_draft: clientNotificationBodyDraft,\n      next_action: \"Support team to send new notification to client.\",\n      notification_status: \"Ready to Notify Support and Agent\",\n      audit_note: auditNote\n    }\n  }\n];"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "a95b3905-6ff9-4bff-ba00-a267ca7ad01b",
+      "name": "Email Support Team",
+      "type": "n8n-nodes-base.gmail",
+      "position": [
+        820,
+        -60
+      ],
+      "parameters": {
+        "sendTo": "={{ $json.support_email }}",
+        "subject": "={{ $json.support_notification_subject }}",
+        "message": "={{ $json.support_notification_body }}",
+        "options": {}
+      },
+      "typeVersion": 2.1
+    },
+    {
+      "id": "c9a10df8-264c-4bb7-8b9c-e70390e227eb",
+      "name": "Email Insurance Agent",
+      "type": "n8n-nodes-base.gmail",
+      "position": [
+        820,
+        160
+      ],
+      "parameters": {
+        "sendTo": "={{ $json.agent_email }}",
+        "subject": "={{ $json.agent_notification_subject }}",
+        "message": "={{ $json.agent_notification_body }}",
+        "options": {}
+      },
+      "typeVersion": 2.1
+    },
+    {
+      "id": "ed5146af-dc98-4ea2-9a11-c7056490f78a",
+      "name": "Prepare Not Approved Follow-up",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        540,
+        300
+      ],
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      claim_reference_number: $json.claim_reference_number || \"\",\n      doctor_review_decision: $json.doctor_review_decision || \"Unclear\",\n      doctor_review_notes: $json.doctor_review_notes || \"\",\n      status: \"Doctor review is not approved. Support follow-up required.\",\n      support_email: $json.support_email || \"support@company.com\",\n      support_subject: `Medical Review Follow-up Required - ${$json.claim_reference_number || \"Unknown Claim\"}`,\n      support_body: `Dear Support Team,\\n\\nThe insurance doctor review is not approved or requires follow-up.\\n\\nClaim Reference Number:\\n${$json.claim_reference_number || \"\"}\\n\\nDoctor Review Decision:\\n${$json.doctor_review_decision || \"Unclear\"}\\n\\nDoctor Review Notes:\\n${$json.doctor_review_notes || \"\"}\\n\\nPlease review the doctor's notes and contact the client or agent for the next required action.\\n\\nThank you.`\n    }\n  }\n];"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "35663b43-2057-4e00-be91-8e5a601caec0",
+      "name": "Email Support - Follow Up Required",
+      "type": "n8n-nodes-base.gmail",
+      "position": [
+        820,
+        300
+      ],
+      "parameters": {
+        "sendTo": "={{ $json.support_email }}",
+        "subject": "={{ $json.support_subject }}",
+        "message": "={{ $json.support_body }}",
+        "options": {}
+      },
+      "typeVersion": 2.1
+    },
+    {
+      "id": "950eb6e6-5dfd-439d-a508-44e302f565cc",
+      "name": "Prepare Audit Record",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1100,
+        60
+      ],
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      claim_reference_number: $json.doctor_review_approval_summary?.claim_reference_number || $json.claim_reference_number || \"\",\n      client_name: $json.doctor_review_approval_summary?.client_name || \"\",\n      policy_number: $json.doctor_review_approval_summary?.policy_number || \"\",\n      doctor_name: $json.doctor_review_approval_summary?.doctor_name || \"\",\n      doctor_review_decision: $json.doctor_review_approval_summary?.doctor_review_decision || $json.doctor_review_decision || \"\",\n      support_notification_status: $json.support_notification_subject ? \"Prepared / Sent to Support\" : \"Follow-up sent to Support\",\n      agent_notification_status: $json.agent_notification_subject ? \"Prepared / Sent to Agent\" : \"Not sent\",\n      client_notification_draft_status: $json.client_notification_body_draft ? \"Prepared for Support\" : \"Not prepared\",\n      next_action: $json.next_action || \"Support follow-up required\",\n      audit_note: $json.audit_note || $json.status || \"\",\n      updated_at: new Date().toISOString()\n    }\n  }\n];"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "6f2769eb-77e6-461d-a111-425b7348d79f",
+      "name": "Audit Mapping Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1080,
+        220
+      ],
+      "parameters": {
+        "color": 5,
+        "width": 420,
+        "height": 220,
+        "content": "## Optional Google Sheets Mapping\n\nAdd a Google Sheets Append Row node after `Prepare Audit Record` and map:\n- claim_reference_number\n- client_name\n- policy_number\n- doctor_name\n- doctor_review_decision\n- support_notification_status\n- agent_notification_status\n- client_notification_draft_status\n- next_action\n- audit_note\n- updated_at"
+      },
+      "typeVersion": 1
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manual Trigger - Doctor Approved": {
+      "main": [
+        [
+          {
+            "node": "Set Doctor Review Decision Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Doctor Review Decision Data": {
+      "main": [
+        [
+          {
+            "node": "IF Doctor Approved?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Doctor Approved?": {
+      "main": [
+        [
+          {
+            "node": "Generate Notifications After Doctor Approved",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Not Approved Follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Notifications After Doctor Approved": {
+      "main": [
+        [
+          {
+            "node": "Email Support Team",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email Insurance Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Support Team": {
+      "main": [
+        [
+          {
+            "node": "Prepare Audit Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Insurance Agent": {
+      "main": [
+        [
+          {
+            "node": "Prepare Audit Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Not Approved Follow-up": {
+      "main": [
+        [
+          {
+            "node": "Email Support - Follow Up Required",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Support - Follow Up Required": {
+      "main": [
+        [
+          {
+            "node": "Prepare Audit Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": ""
+}
