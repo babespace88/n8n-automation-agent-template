@@ -1,0 +1,465 @@
+{
+  "name": "AI Claim Status Form Checker for Support and Agent",
+  "nodes": [
+    {
+      "id": "e8f31a63-6fc6-49a4-90a1-4029f284aa0a",
+      "name": "Sticky Note - Overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -760,
+        -260
+      ],
+      "parameters": {
+        "color": 7,
+        "width": 620,
+        "height": 440,
+        "content": "## AI Claim Status Form Checker for Support / Agent\n\nPurpose:\n- Support or insurance agent submits claim status update form\n- AI validates the form data\n- AI checks whether required claim status fields are complete\n- Data is transferred to Google Sheet\n- Workflow returns an auto-checker result for support/agent\n\nUse this as an internal insurance claim operation workflow."
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "92b3d2c0-ccff-464a-aed4-73d01c8a3ef6",
+      "name": "Manual Trigger - Test Form",
+      "type": "n8n-nodes-base.manualTrigger",
+      "position": [
+        -520,
+        80
+      ],
+      "parameters": {},
+      "typeVersion": 1
+    },
+    {
+      "id": "2ee2aa68-90ca-46f7-8007-cba8b8fa157d",
+      "name": "Set Support Agent Form Data",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        -280,
+        80
+      ],
+      "parameters": {
+        "options": {},
+        "assignments": {
+          "assignments": [
+            {
+              "id": "adc0d8f1-d106-4895-978e-36668e7df74a",
+              "name": "submitted_by_role",
+              "type": "string",
+              "value": "Support Agent"
+            },
+            {
+              "id": "5b00068e-7d40-411f-b077-6abf266bf19c",
+              "name": "submitted_by_name",
+              "type": "string",
+              "value": "Nur Aina"
+            },
+            {
+              "id": "3352bed9-6d12-4d0b-af3c-607ba110a081",
+              "name": "submitted_by_email",
+              "type": "string",
+              "value": "support@company.com"
+            },
+            {
+              "id": "4efcac78-07ec-4be1-8c8b-77726f6d43ab",
+              "name": "claim_reference_number",
+              "type": "string",
+              "value": "CLM-2026-00452"
+            },
+            {
+              "id": "fc640f36-57db-42c7-8ed0-31b7813442f1",
+              "name": "client_name",
+              "type": "string",
+              "value": "Aisyah Binti Rahman"
+            },
+            {
+              "id": "e7d39d27-a36a-40ad-bac8-a246bf39f254",
+              "name": "client_email",
+              "type": "string",
+              "value": "aisyahrahman@email.com"
+            },
+            {
+              "id": "b6113f9d-8679-46cf-a498-56cdf7213da2",
+              "name": "policy_number",
+              "type": "string",
+              "value": "POL-INS-2026-00981"
+            },
+            {
+              "id": "d56c4c0c-13a5-480a-9011-25dc758b502e",
+              "name": "claim_type",
+              "type": "string",
+              "value": "Medical Claim"
+            },
+            {
+              "id": "7f3541e0-4fa6-437b-a88d-3b2304a060de",
+              "name": "claim_status",
+              "type": "string",
+              "value": "Pending Doctor Review"
+            },
+            {
+              "id": "d781fa79-3a3c-45c1-a2ac-c089a811d9c5",
+              "name": "current_stage",
+              "type": "string",
+              "value": "Medical Document Review"
+            },
+            {
+              "id": "8f3b23b9-04dd-4099-965e-e877cc4cefd1",
+              "name": "agent_review_status",
+              "type": "string",
+              "value": "Completed"
+            },
+            {
+              "id": "6380211b-3f9e-42f4-a1c2-d794c4123f64",
+              "name": "doctor_review_status",
+              "type": "string",
+              "value": "Pending"
+            },
+            {
+              "id": "48aa7a36-92e5-4773-bc81-38d7b6ab6f50",
+              "name": "finance_handoff_status",
+              "type": "string",
+              "value": "Not Started"
+            },
+            {
+              "id": "b01ef519-53c5-41ab-bdae-4438c4375f47",
+              "name": "missing_documents",
+              "type": "string",
+              "value": "X-ray confirmation letter if applicable"
+            },
+            {
+              "id": "00d5a8d6-ebf2-4d52-84d1-33c9013226bd",
+              "name": "pending_action",
+              "type": "string",
+              "value": "Waiting for insurance doctor review within 7 days"
+            },
+            {
+              "id": "72bb3bea-3a57-4475-aca4-9e55ec6d8331",
+              "name": "support_notes",
+              "type": "string",
+              "value": "Client documents submitted. Doctor review pending."
+            },
+            {
+              "id": "3b214a63-b8a6-49ec-8439-e46673900a9c",
+              "name": "last_updated",
+              "type": "string",
+              "value": "={{ $now }}"
+            }
+          ]
+        }
+      },
+      "typeVersion": 3.4
+    },
+    {
+      "id": "2a03af80-3ed3-41c3-8895-9bb957d154a5",
+      "name": "Define AI Form Checker Prompt",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        -40,
+        80
+      ],
+      "parameters": {
+        "options": {},
+        "assignments": {
+          "assignments": [
+            {
+              "id": "0f918935-2432-4ddd-869f-d0353e55846d",
+              "name": "prompt",
+              "type": "string",
+              "value": "You are an AI Insurance Claim Status Form Checker for internal support and insurance agents.\n\nYour task is to validate a claim status update submitted by support or an insurance agent before it is saved to the claim tracking sheet.\n\nImportant rules:\n- Do not approve or reject an insurance claim.\n- Do not say payment is completed unless the submitted status clearly says payment completed.\n- Do not invent missing information.\n- This workflow is for internal support/agent claim status checking only.\n- If important information is missing, mark the form as incomplete.\n\nInput form data:\nSubmitted By Role: {{ $json.submitted_by_role }}\nSubmitted By Name: {{ $json.submitted_by_name }}\nSubmitted By Email: {{ $json.submitted_by_email }}\nClaim Reference Number: {{ $json.claim_reference_number }}\nClient Name: {{ $json.client_name }}\nClient Email: {{ $json.client_email }}\nPolicy Number: {{ $json.policy_number }}\nClaim Type: {{ $json.claim_type }}\nClaim Status: {{ $json.claim_status }}\nCurrent Stage: {{ $json.current_stage }}\nAgent Review Status: {{ $json.agent_review_status }}\nDoctor Review Status: {{ $json.doctor_review_status }}\nFinance Handoff Status: {{ $json.finance_handoff_status }}\nMissing Documents: {{ $json.missing_documents }}\nPending Action: {{ $json.pending_action }}\nSupport Notes: {{ $json.support_notes }}\nLast Updated: {{ $json.last_updated }}\n\nCheck these required fields:\n- submitted_by_role\n- submitted_by_name\n- submitted_by_email\n- claim_reference_number\n- client_name\n- policy_number\n- claim_status\n- current_stage\n- pending_action\n\nAllowed claim_status values:\n- Submitted\n- Pending Agent Review\n- Pending Doctor Review\n- Pending Medical Documents\n- Approved\n- Sent to Finance\n- Pending Bank Details\n- Payment Preparation\n- Rejected\n- Closed\n\nAllowed current_stage values:\n- Claim Intake\n- Agent Review\n- Medical Document Review\n- Doctor Review\n- Finance Handoff\n- Bank Details Check\n- Payment Preparation\n- Support Follow-up\n- Completed\n\nYour tasks:\n1. Validate whether the form is complete.\n2. Check whether claim_status and current_stage are logical.\n3. Detect missing fields.\n4. Detect inconsistent status, for example:\n   - claim_status is Sent to Finance but finance_handoff_status is Not Started\n   - claim_status is Approved but agent_review_status is Pending\n   - claim_status is Pending Doctor Review but doctor_review_status is Completed\n5. Create a clean row for Google Sheet.\n6. Create an auto-checker message for support/agent.\n\nReturn valid JSON only.\nDo not include markdown.\nDo not include explanation outside JSON.\n\nUse this exact JSON structure:\n{\n  \"form_checker_result\": {\n    \"form_status\": \"Complete/Incomplete/Needs Review\",\n    \"data_quality_score\": \"Low/Medium/High\",\n    \"is_ready_to_save\": true,\n    \"missing_fields\": [],\n    \"inconsistencies\": [],\n    \"checker_message\": \"\"\n  },\n  \"claim_tracking_row\": {\n    \"submitted_by_role\": \"\",\n    \"submitted_by_name\": \"\",\n    \"submitted_by_email\": \"\",\n    \"claim_reference_number\": \"\",\n    \"client_name\": \"\",\n    \"client_email\": \"\",\n    \"policy_number\": \"\",\n    \"claim_type\": \"\",\n    \"claim_status\": \"\",\n    \"current_stage\": \"\",\n    \"agent_review_status\": \"\",\n    \"doctor_review_status\": \"\",\n    \"finance_handoff_status\": \"\",\n    \"missing_documents\": \"\",\n    \"pending_action\": \"\",\n    \"support_notes\": \"\",\n    \"last_updated\": \"\"\n  },\n  \"next_action\": \"\",\n  \"audit_note\": \"\"\n}\n"
+            }
+          ]
+        }
+      },
+      "typeVersion": 3.4
+    },
+    {
+      "id": "da212452-92c5-4fab-a9c5-93b1b1e634f8",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "position": [
+        220,
+        300
+      ],
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "typeVersion": 1,
+      "credentials": {
+        "openAiApi": {
+          "id": "REPLACE_WITH_OPENAI_CREDENTIAL_ID",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "id": "64babcf9-04b8-489b-9ae5-6536b3e60d86",
+      "name": "AI Claim Status Form Checker",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [
+        220,
+        80
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Define AI Form Checker Prompt').item.json.prompt }}",
+        "hasOutputParser": false,
+        "options": {
+          "systemMessage": "You are an internal insurance claim status form checker. Return valid JSON only."
+        }
+      },
+      "typeVersion": 1.6
+    },
+    {
+      "id": "0f395793-2858-4b65-9307-c4c4ea332622",
+      "name": "Parse Checker JSON",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        520,
+        80
+      ],
+      "parameters": {
+        "jsCode": "const raw = $json.output || $json.text || $json.response || $json.message || JSON.stringify($json);\n\nconst cleaned = String(raw)\n  .replace(/```json/g, \"\")\n  .replace(/```/g, \"\")\n  .trim();\n\nlet data;\ntry {\n  data = JSON.parse(cleaned);\n} catch (error) {\n  throw new Error(\"AI output is not valid JSON: \" + error.message + \"\\nRaw output:\\n\" + cleaned);\n}\n\nreturn [{ json: data }];"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "41b9f38c-de05-48d0-b979-63f9c7e6b4ab",
+      "name": "IF Ready To Save?",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        760,
+        80
+      ],
+      "parameters": {
+        "options": {},
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "bae2051d-69e9-4d6f-9770-e1072f11a4fb",
+              "leftValue": "={{ $json.form_checker_result.is_ready_to_save }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        }
+      },
+      "typeVersion": 2.2
+    },
+    {
+      "id": "9db11d27-9336-49e8-9a6c-40e492c0d7cb",
+      "name": "Save Claim Status to Google Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        1040,
+        -60
+      ],
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "PASTE_YOUR_GOOGLE_SHEET_URL_HERE"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Claim_Status_Tracking"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "submitted_by_role": "={{ $json.claim_tracking_row.submitted_by_role }}",
+            "submitted_by_name": "={{ $json.claim_tracking_row.submitted_by_name }}",
+            "submitted_by_email": "={{ $json.claim_tracking_row.submitted_by_email }}",
+            "claim_reference_number": "={{ $json.claim_tracking_row.claim_reference_number }}",
+            "client_name": "={{ $json.claim_tracking_row.client_name }}",
+            "client_email": "={{ $json.claim_tracking_row.client_email }}",
+            "policy_number": "={{ $json.claim_tracking_row.policy_number }}",
+            "claim_type": "={{ $json.claim_tracking_row.claim_type }}",
+            "claim_status": "={{ $json.claim_tracking_row.claim_status }}",
+            "current_stage": "={{ $json.claim_tracking_row.current_stage }}",
+            "agent_review_status": "={{ $json.claim_tracking_row.agent_review_status }}",
+            "doctor_review_status": "={{ $json.claim_tracking_row.doctor_review_status }}",
+            "finance_handoff_status": "={{ $json.claim_tracking_row.finance_handoff_status }}",
+            "missing_documents": "={{ $json.claim_tracking_row.missing_documents }}",
+            "pending_action": "={{ $json.claim_tracking_row.pending_action }}",
+            "support_notes": "={{ $json.claim_tracking_row.support_notes }}",
+            "last_updated": "={{ $json.claim_tracking_row.last_updated }}",
+            "form_status": "={{ $json.form_checker_result.form_status }}",
+            "data_quality_score": "={{ $json.form_checker_result.data_quality_score }}",
+            "checker_message": "={{ $json.form_checker_result.checker_message }}",
+            "audit_note": "={{ $json.audit_note }}"
+          }
+        },
+        "options": {}
+      },
+      "typeVersion": 4.4,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_WITH_GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "7fa074bf-25c7-4088-b504-2ecb60bfcd14",
+      "name": "Return Checker Result - Saved",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1300,
+        -60
+      ],
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    response_type: \"success\",\n    message: \"Claim status form checked and saved to Google Sheet.\",\n    claim_reference_number: $json.claim_tracking_row.claim_reference_number,\n    form_status: $json.form_checker_result.form_status,\n    data_quality_score: $json.form_checker_result.data_quality_score,\n    checker_message: $json.form_checker_result.checker_message,\n    next_action: $json.next_action,\n    audit_note: $json.audit_note\n  }\n}];"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "606e2348-c03c-436a-98a8-ad40cb2d1cf0",
+      "name": "Return Checker Result - Needs Review",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1040,
+        220
+      ],
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    response_type: \"needs_review\",\n    message: \"Claim status form was checked but not saved because it needs review.\",\n    claim_reference_number: $json.claim_tracking_row?.claim_reference_number || \"\",\n    form_status: $json.form_checker_result.form_status,\n    data_quality_score: $json.form_checker_result.data_quality_score,\n    missing_fields: $json.form_checker_result.missing_fields,\n    inconsistencies: $json.form_checker_result.inconsistencies,\n    checker_message: $json.form_checker_result.checker_message,\n    next_action: $json.next_action,\n    audit_note: $json.audit_note\n  }\n}];"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "78d4ad34-2655-4bbe-a86f-e7a09908a0f7",
+      "name": "Sticky Note - Sheet Columns",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        900,
+        360
+      ],
+      "parameters": {
+        "color": 5,
+        "width": 580,
+        "height": 380,
+        "content": "## Google Sheet columns needed\n\nsubmitted_by_role\nsubmitted_by_name\nsubmitted_by_email\nclaim_reference_number\nclient_name\nclient_email\npolicy_number\nclaim_type\nclaim_status\ncurrent_stage\nagent_review_status\ndoctor_review_status\nfinance_handoff_status\nmissing_documents\npending_action\nsupport_notes\nlast_updated\nform_status\ndata_quality_score\nchecker_message\naudit_note"
+      },
+      "typeVersion": 1
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manual Trigger - Test Form": {
+      "main": [
+        [
+          {
+            "node": "Set Support Agent Form Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Support Agent Form Data": {
+      "main": [
+        [
+          {
+            "node": "Define AI Form Checker Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Define AI Form Checker Prompt": {
+      "main": [
+        [
+          {
+            "node": "AI Claim Status Form Checker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Claim Status Form Checker",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Claim Status Form Checker": {
+      "main": [
+        [
+          {
+            "node": "Parse Checker JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Checker JSON": {
+      "main": [
+        [
+          {
+            "node": "IF Ready To Save?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Ready To Save?": {
+      "main": [
+        [
+          {
+            "node": "Save Claim Status to Google Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Checker Result - Needs Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Claim Status to Google Sheet": {
+      "main": [
+        [
+          {
+            "node": "Return Checker Result - Saved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "79d8e800-ab92-4bc6-98e5-a9cb5b2eeca3",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}
