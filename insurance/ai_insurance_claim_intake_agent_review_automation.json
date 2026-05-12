@@ -1,0 +1,348 @@
+{
+  "name": "AI Insurance Claim Intake & Agent Review Automation",
+  "nodes": [
+    {
+      "id": "89e71b48-0e7a-435a-98cb-70fc20bc0e82",
+      "name": "Manual Trigger - Test Claim Intake",
+      "type": "n8n-nodes-base.manualTrigger",
+      "position": [
+        -520,
+        0
+      ],
+      "parameters": {},
+      "typeVersion": 1
+    },
+    {
+      "id": "34ec2016-af20-41b8-a43b-3b7e79193b42",
+      "name": "Sticky Note - Project Overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -900,
+        -260
+      ],
+      "parameters": {
+        "color": 7,
+        "width": 560,
+        "height": 360,
+        "content": "## AI Insurance Claim Intake & Agent Review Automation\n\nThis workflow is converted from a PDF extraction template into an insurance claim intake demo.\n\nFlow:\n1. Download claim PDF from Google Drive\n2. Convert PDF to base64\n3. Gemini extracts claim details as JSON\n4. Parse AI JSON output\n5. IF ready, email insurance agent for review\n6. If missing documents, notify support for follow-up\n\nSet your own Google Drive, Gemini, Gmail, and Google Sheets credentials after import."
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "eac24020-2c4a-4b0d-9aa3-63b856f1bff1",
+      "name": "Define Insurance Claim Prompt",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        -300,
+        0
+      ],
+      "parameters": {
+        "options": {},
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ed800cc4-0734-4c3d-a654-d6845d7c65be",
+              "name": "prompt",
+              "type": "string",
+              "value": "You are an AI Insurance Claim Intake Assistant.\n\nYour task is to review and organize an insurance claim submission before sending it to a human insurance agent for final review.\n\nThe client has submitted a claim form and uploaded supporting documents such as:\n- Medical leave certificate / surat cuti sakit\n- Doctor confirmation letter / surat pengesahan doktor\n- Hospital invoice\n- Payment receipt\n- Medical report if available\n- Policyholder details\n- Claim form\n- IC / identification document if available\n\nImportant rules:\n- Do not approve or reject the claim yourself.\n- The final decision must be made by a human insurance agent.\n- If information is unclear, mark it as \"Unclear\".\n- If a document is missing, add it into missing_information.\n- Keep the summary professional and easy for an insurance agent to understand.\n- Return valid JSON only. Do not include markdown or explanation outside JSON.\n\nExtract and review the insurance claim from the uploaded PDF/document.\n\nYour responsibilities:\n1. Extract key claim information:\n- Client full name\n- Policy number\n- IC / ID number\n- Contact number\n- Email\n- Claim type\n- Hospital / clinic name\n- Doctor name\n- Treatment date\n- Diagnosis / medical reason\n- Medical leave duration\n- Total hospital fees\n- Invoice number\n- Receipt number\n- Submitted document list\n\n2. Check document completeness:\nIdentify whether these documents are provided:\n- Claim form\n- Medical leave certificate\n- Doctor confirmation letter\n- Hospital invoice\n- Payment receipt\n- Medical report if available\n- IC / identification document if available\n\n3. Detect missing, unreadable, inconsistent, or incomplete details.\n\n4. Create a claim review summary for the insurance agent.\n\n5. Classify claim status using only one of the following:\n- Ready for Agent Review\n- Need More Documents\n- Missing Critical Information\n- Possible Duplicate / Needs Verification\n\n6. Risk checking:\nCheck for possible issues such as:\n- Invoice amount not matching receipt amount\n- Missing treatment date\n- Missing doctor confirmation\n- Missing policy number\n- Unclear diagnosis\n- Incomplete claim form\n- Duplicate invoice or receipt number\n- Uploaded document does not match claim type\n\n7. Recommendation:\nGive a short recommendation for the insurance agent:\n- Approve for manual review\n- Request additional documents\n- Verify with hospital / clinic\n- Contact client for clarification\n\nReturn the answer in this exact JSON structure:\n{\n  \"claim_summary\": {\n    \"client_name\": \"\",\n    \"policy_number\": \"\",\n    \"ic_number\": \"\",\n    \"contact_number\": \"\",\n    \"email\": \"\",\n    \"claim_type\": \"\",\n    \"hospital_or_clinic\": \"\",\n    \"doctor_name\": \"\",\n    \"treatment_date\": \"\",\n    \"diagnosis\": \"\",\n    \"medical_leave_duration\": \"\",\n    \"total_claim_amount\": \"\",\n    \"invoice_number\": \"\",\n    \"receipt_number\": \"\"\n  },\n  \"submitted_documents\": {\n    \"claim_form\": \"Yes/No/Unclear\",\n    \"medical_leave_certificate\": \"Yes/No/Unclear\",\n    \"doctor_confirmation_letter\": \"Yes/No/Unclear\",\n    \"hospital_invoice\": \"Yes/No/Unclear\",\n    \"payment_receipt\": \"Yes/No/Unclear\",\n    \"medical_report\": \"Yes/No/Unclear\",\n    \"identification_document\": \"Yes/No/Unclear\"\n  },\n  \"missing_information\": [],\n  \"risk_flags\": [],\n  \"claim_status\": \"\",\n  \"agent_review_summary\": \"\",\n  \"recommendation\": \"\",\n  \"agent_email_subject\": \"\",\n  \"agent_email_body\": \"\",\n  \"support_followup_subject\": \"\",\n  \"support_followup_body\": \"\",\n  \"audit_note\": \"\"\n}"
+            }
+          ]
+        }
+      },
+      "typeVersion": 3.4
+    },
+    {
+      "id": "8adf0022-68cb-42ba-89f0-9d18ae481595",
+      "name": "Google Drive - Download Claim PDF",
+      "type": "n8n-nodes-base.googleDrive",
+      "position": [
+        -60,
+        0
+      ],
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "REPLACE_WITH_YOUR_GOOGLE_DRIVE_FILE_ID",
+          "cachedResultName": "sample_insurance_claim.pdf"
+        },
+        "options": {}
+      },
+      "typeVersion": 3
+    },
+    {
+      "id": "2cec5e38-01b4-48b1-aab3-e7cca394af4f",
+      "name": "Extract PDF to Base64",
+      "type": "n8n-nodes-base.extractFromFile",
+      "position": [
+        180,
+        0
+      ],
+      "parameters": {
+        "operation": "binaryToPropery",
+        "options": {},
+        "destinationKey": "data"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "d46019be-40df-4b97-b5a9-55b53e3bc7ba",
+      "name": "Gemini - Extract Claim JSON from PDF",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"contents\": [\n    {\n      \"parts\": [\n        {\n          \"inline_data\": {\n            \"mime_type\": \"application/pdf\",\n            \"data\": \"{{ $json.data }}\"\n          }\n        },\n        {\n          \"text\": \"{{ $('Define Insurance Claim Prompt').item.json.prompt }}\"\n        }\n      ]\n    }\n  ],\n  \"generationConfig\": {\n    \"responseMimeType\": \"application/json\"\n  }\n}",
+        "options": {}
+      },
+      "typeVersion": 4.2
+    },
+    {
+      "id": "e164d5c8-7f05-4410-905f-97061143eea1",
+      "name": "Parse Claim Intake JSON",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        700,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const raw =\n  $json.candidates?.[0]?.content?.parts?.[0]?.text ||\n  $json.output ||\n  $json.text ||\n  $json.response ||\n  $json.message ||\n  JSON.stringify($json);\n\nconst cleaned = String(raw)\n  .replace(/```json/g, \"\")\n  .replace(/```/g, \"\")\n  .trim();\n\nlet data;\ntry {\n  data = JSON.parse(cleaned);\n} catch (error) {\n  throw new Error(\"AI output is not valid JSON: \" + error.message + \"\\nRaw output:\\n\" + cleaned);\n}\n\nreturn [{ json: data }];"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "d352155c-1080-4781-8df2-cdd2aeeb89e9",
+      "name": "IF Ready for Agent Review",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        960,
+        0
+      ],
+      "parameters": {
+        "options": {},
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "5747f99c-b1bd-4643-90e6-b383700063fe",
+              "leftValue": "={{ $json.claim_status }}",
+              "rightValue": "Ready for Agent Review",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "905df172-7fc2-46c0-8468-489504c277eb",
+      "name": "Email Insurance Agent for Review",
+      "type": "n8n-nodes-base.gmail",
+      "position": [
+        1220,
+        -120
+      ],
+      "parameters": {
+        "sendTo": "agent@company.com",
+        "subject": "={{ $json.agent_email_subject || 'Insurance Claim Ready for Agent Review - ' + $json.claim_summary.claim_reference_number }}",
+        "message": "={{ $json.agent_email_body || 'New insurance claim received for review.\n\nClient Name: ' + $json.claim_summary.client_name + '\nPolicy Number: ' + $json.claim_summary.policy_number + '\nClaim Type: ' + $json.claim_summary.claim_type + '\nTreatment Date: ' + $json.claim_summary.treatment_date + '\nHospital / Clinic: ' + $json.claim_summary.hospital_or_clinic + '\nTotal Claim Amount: ' + $json.claim_summary.total_claim_amount + '\n\nClaim Status: ' + $json.claim_status + '\n\nMissing Information: ' + JSON.stringify($json.missing_information) + '\nRisk Flags: ' + JSON.stringify($json.risk_flags) + '\n\nAI Summary: ' + $json.agent_review_summary + '\n\nRecommendation: ' + $json.recommendation }}",
+        "options": {}
+      },
+      "typeVersion": 2.1
+    },
+    {
+      "id": "dd2b2d1c-6dff-49f7-8622-9dc01c9f1a16",
+      "name": "Email Support - Missing Documents",
+      "type": "n8n-nodes-base.gmail",
+      "position": [
+        1220,
+        140
+      ],
+      "parameters": {
+        "sendTo": "support@company.com",
+        "subject": "={{ $json.support_followup_subject || 'Claim Needs Follow-up - Missing Information' }}",
+        "message": "={{ $json.support_followup_body || 'Dear Support Team,\n\nThis insurance claim is not ready for agent review and needs follow-up.\n\nClient Name: ' + $json.claim_summary.client_name + '\nPolicy Number: ' + $json.claim_summary.policy_number + '\nClaim Status: ' + $json.claim_status + '\n\nMissing Information: ' + JSON.stringify($json.missing_information) + '\nRisk Flags: ' + JSON.stringify($json.risk_flags) + '\n\nPlease contact the client to complete the required claim documents.' }}",
+        "options": {}
+      },
+      "typeVersion": 2.1
+    },
+    {
+      "id": "4509eb30-e3f6-493a-952d-ebba398ba0ca",
+      "name": "Save Claim Intake Record",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        1480,
+        0
+      ],
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "REPLACE_WITH_GOOGLE_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": "Claim_Intake_Log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "claim_reference_number": "={{ $json.claim_summary.claim_reference_number || $json.claim_summary.policy_number }}",
+            "client_name": "={{ $json.claim_summary.client_name }}",
+            "policy_number": "={{ $json.claim_summary.policy_number }}",
+            "claim_type": "={{ $json.claim_summary.claim_type }}",
+            "hospital_or_clinic": "={{ $json.claim_summary.hospital_or_clinic }}",
+            "total_claim_amount": "={{ $json.claim_summary.total_claim_amount }}",
+            "claim_status": "={{ $json.claim_status }}",
+            "missing_information": "={{ JSON.stringify($json.missing_information) }}",
+            "risk_flags": "={{ JSON.stringify($json.risk_flags) }}",
+            "recommendation": "={{ $json.recommendation }}",
+            "created_at": "={{ $now }}"
+          },
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "typeVersion": 4.5
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manual Trigger - Test Claim Intake": {
+      "main": [
+        [
+          {
+            "node": "Define Insurance Claim Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Define Insurance Claim Prompt": {
+      "main": [
+        [
+          {
+            "node": "Google Drive - Download Claim PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive - Download Claim PDF": {
+      "main": [
+        [
+          {
+            "node": "Extract PDF to Base64",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract PDF to Base64": {
+      "main": [
+        [
+          {
+            "node": "Gemini - Extract Claim JSON from PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini - Extract Claim JSON from PDF": {
+      "main": [
+        [
+          {
+            "node": "Parse Claim Intake JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Claim Intake JSON": {
+      "main": [
+        [
+          {
+            "node": "IF Ready for Agent Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Ready for Agent Review": {
+      "main": [
+        [
+          {
+            "node": "Email Insurance Agent for Review",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Email Support - Missing Documents",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Insurance Agent for Review": {
+      "main": [
+        [
+          {
+            "node": "Save Claim Intake Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Support - Missing Documents": {
+      "main": [
+        [
+          {
+            "node": "Save Claim Intake Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "bc10a50c-b154-445b-bd2f-8bc6fbfbd35a",
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "description": "Converted from PDF extraction template into AI insurance claim intake and agent review automation."
+  },
+  "tags": []
+}

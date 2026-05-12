@@ -1,0 +1,513 @@
+{
+  "name": "Medical Document Review Handoff Automation",
+  "nodes": [
+    {
+      "id": "26461566-fe90-42dd-ae7b-6af8af48364e",
+      "name": "Project Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        240,
+        160
+      ],
+      "parameters": {
+        "color": 7,
+        "width": 680,
+        "height": 260,
+        "content": "## Medical Document Review Handoff Automation\n\nFlow A: Client uploads medical documents → AI organizes/checks documents → send review package to insurance doctor within 7 days.\n\nFlow B: Doctor submits decision → if Approved, notify Support and Agent → Support prepares a new notification to client.\n\nSet your own credentials for Gmail/OpenAI if you want to execute live."
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "f20a7e86-b3a0-4fa0-98d9-a50b833b0363",
+      "name": "Credentials Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1180,
+        160
+      ],
+      "parameters": {
+        "color": 2,
+        "width": 420,
+        "height": 180,
+        "content": "**Before testing live:**\n\n1. Set OpenAI/Gemini credential on Chat Model node.\n2. Set Gmail credential on email nodes.\n3. Replace placeholder emails:\n- insurance.doctor@company.com\n- support@company.com\n- agent@company.com"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "e1e7fb62-1e73-4328-aecb-015280b0bf8d",
+      "name": "Manual Trigger - Test Upload",
+      "type": "n8n-nodes-base.manualTrigger",
+      "position": [
+        240,
+        500
+      ],
+      "parameters": {},
+      "typeVersion": 1
+    },
+    {
+      "id": "c8fa2bbe-f958-46c2-855a-993ab331ffb3",
+      "name": "Set Sample Medical Claim Data",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        500,
+        500
+      ],
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      client_name: \"Aisyah Binti Rahman\",\n      client_email: \"aisyahrahman@email.com\",\n      contact_number: \"0123456789\",\n      ic_number: \"900101-10-1234\",\n      policy_number: \"POL-INS-2026-00981\",\n      claim_reference_number: \"CLM-2026-00452\",\n      hospital_or_clinic: \"KPJ Specialist Hospital\",\n      treating_doctor_name: \"Dr. Amir Hakim\",\n      treatment_date: \"2026-05-05\",\n      medical_leave_date: \"2026-05-05 to 2026-05-10\",\n      medical_leave_duration: \"6 days\",\n      diagnosis_or_medical_reason: \"Dengue fever treatment\",\n      xray_required: \"No\",\n      xray_completed: \"Not Applicable\",\n      xray_result_summary: \"Not Applicable\",\n      submission_date: \"2026-05-12\",\n      uploaded_documents: [\n        \"medical_leave_certificate.pdf\",\n        \"doctor_confirmation_letter.pdf\",\n        \"hospital_invoice.pdf\",\n        \"payment_receipt.pdf\"\n      ],\n      document_text: \"Client submitted medical leave certificate, doctor confirmation letter, hospital invoice, and payment receipt. X-ray is not required for this case.\"\n    }\n  }\n];"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "e67b2f84-f104-4b1a-9bf9-b853887ef0a2",
+      "name": "Prepare Medical Review Data",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        760,
+        500
+      ],
+      "parameters": {
+        "jsCode": "const input = $json;\n\nfunction addDays(dateString, days) {\n  const date = new Date(dateString);\n  date.setDate(date.getDate() + days);\n  return date.toISOString().split(\"T\")[0];\n}\n\nconst submissionDate = input.submission_date || new Date().toISOString().split(\"T\")[0];\nconst doctorReviewDeadline = addDays(submissionDate, 7);\n\nreturn [\n  {\n    json: {\n      client_name: input.client_name || \"\",\n      client_email: input.client_email || \"\",\n      contact_number: input.contact_number || \"\",\n      ic_number: input.ic_number || \"\",\n      policy_number: input.policy_number || \"\",\n      claim_reference_number: input.claim_reference_number || \"\",\n      hospital_or_clinic: input.hospital_or_clinic || \"\",\n      treating_doctor_name: input.treating_doctor_name || \"\",\n      treatment_date: input.treatment_date || \"\",\n      medical_leave_date: input.medical_leave_date || \"\",\n      medical_leave_duration: input.medical_leave_duration || \"\",\n      diagnosis_or_medical_reason: input.diagnosis_or_medical_reason || \"\",\n      xray_required: input.xray_required || \"Unclear\",\n      xray_completed: input.xray_completed || \"Unclear\",\n      xray_result_summary: input.xray_result_summary || \"\",\n      submission_date: submissionDate,\n      doctor_review_deadline: doctorReviewDeadline,\n      uploaded_documents: input.uploaded_documents || [],\n      document_text: input.document_text || \"\"\n    }\n  }\n];"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "b05d4073-0443-4dee-afc7-bde26b2f9a9e",
+      "name": "AI Agent - Medical Review Handoff",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [
+        1020,
+        500
+      ],
+      "parameters": {
+        "options": {
+          "systemMessage": "You are an AI Medical Document Review Handoff Assistant for an insurance claim workflow.\n\nYour task is to prepare uploaded medical documents for review by an insurance doctor.\n\nImportant rules:\n- Do not approve or reject the claim yourself.\n- Do not give a new medical diagnosis.\n- Do not replace the insurance doctor.\n- Your task is only to organize the documents, check completeness, summarize the case, and prepare the doctor review handoff.\n- The insurance doctor must review the documents within 7 days.\n- If information is unclear, mark it as \"Unclear\".\n- If documents are missing, list them clearly.\n\nUse the current input JSON as the claim data.\n\nCheck document completeness for:\n- Medical leave certificate\n- Doctor confirmation letter\n- X-ray confirmation letter\n- X-ray copy if available\n- Medical report\n- Claim form\n- Hospital invoice or receipt\n\nClassify doctor_review_readiness_status using only one:\n- Ready for Insurance Doctor Review\n- Pending Medical Documents\n- Pending X-ray Documents\n- Missing Critical Medical Information\n- Needs Support Follow-up\n\nReturn valid JSON only. Do not include markdown.\n\nUse this exact JSON structure:\n{\n  \"medical_review_summary\": {\n    \"client_name\": \"\",\n    \"client_email\": \"\",\n    \"policy_number\": \"\",\n    \"claim_reference_number\": \"\",\n    \"ic_number\": \"\",\n    \"contact_number\": \"\",\n    \"hospital_or_clinic\": \"\",\n    \"treating_doctor_name\": \"\",\n    \"treatment_date\": \"\",\n    \"medical_leave_date\": \"\",\n    \"medical_leave_duration\": \"\",\n    \"diagnosis_or_medical_reason\": \"\",\n    \"xray_required\": \"Yes/No/Unclear\",\n    \"xray_completed\": \"Yes/No/Unclear/Not Applicable\",\n    \"xray_result_summary\": \"\",\n    \"submission_date\": \"\",\n    \"doctor_review_deadline\": \"\",\n    \"submitted_documents\": []\n  },\n  \"document_completeness_check\": {\n    \"medical_leave_certificate\": \"Yes/No/Unclear\",\n    \"doctor_confirmation_letter\": \"Yes/No/Unclear\",\n    \"xray_confirmation_letter\": \"Yes/No/Unclear/Not Applicable\",\n    \"xray_copy\": \"Yes/No/Unclear/Not Applicable\",\n    \"medical_report\": \"Yes/No/Unclear\",\n    \"claim_form\": \"Yes/No/Unclear\",\n    \"hospital_invoice_or_receipt\": \"Yes/No/Unclear\"\n  },\n  \"missing_documents\": [],\n  \"unclear_information\": [],\n  \"risk_flags\": [],\n  \"doctor_review_readiness_status\": \"\",\n  \"insurance_doctor_email_subject\": \"\",\n  \"insurance_doctor_email_body\": \"\",\n  \"doctor_review_package_summary\": \"\",\n  \"audit_note\": \"\"\n}"
+        }
+      },
+      "typeVersion": 1.2
+    },
+    {
+      "id": "72a9b23b-e53c-4aca-92af-277d1a3da8a0",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "position": [
+        1000,
+        740
+      ],
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "c0c550e9-156b-4ba3-81e8-cf8e989bc129",
+      "name": "Window Buffer Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "position": [
+        1180,
+        740
+      ],
+      "parameters": {
+        "sessionKey": "={{ $json.claim_reference_number || 'medical-review-demo' }}",
+        "contextWindowLength": 5
+      },
+      "typeVersion": 1.1
+    },
+    {
+      "id": "65ef07a1-80cd-4b77-bf22-a7502c0c0475",
+      "name": "Parse Medical Review JSON",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1300,
+        500
+      ],
+      "parameters": {
+        "jsCode": "const raw = $json.output || $json.text || $json.response || $json.message || JSON.stringify($json);\n\nconst cleaned = String(raw)\n  .replace(/```json/g, \"\")\n  .replace(/```/g, \"\")\n  .trim();\n\nlet data;\n\ntry {\n  data = JSON.parse(cleaned);\n} catch (error) {\n  throw new Error(\n    \"AI output is not valid JSON. Error: \" +\n    error.message +\n    \"\\n\\nRaw output:\\n\" +\n    cleaned\n  );\n}\n\nreturn [{ json: data }];"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "0323e4e9-f6b1-4523-9a40-28ad9731a440",
+      "name": "IF - Ready for Doctor Review",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        1540,
+        500
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "81acde4c-8bec-4d6b-bc82-e31445799980",
+              "leftValue": "={{ $json.doctor_review_readiness_status }}",
+              "rightValue": "Ready for Insurance Doctor Review",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "253ca542-c5f8-4c97-a5b5-2bc894c61f9d",
+      "name": "Gmail - Send Package to Insurance Doctor",
+      "type": "n8n-nodes-base.gmail",
+      "position": [
+        1800,
+        400
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "insurance.doctor@company.com",
+        "subject": "={{ $json.insurance_doctor_email_subject }}",
+        "message": "={{ $json.insurance_doctor_email_body }}",
+        "options": {}
+      },
+      "typeVersion": 2.1
+    },
+    {
+      "id": "6503410f-ce1f-4e72-87db-a5149f198f07",
+      "name": "Gmail - Notify Support Missing Documents",
+      "type": "n8n-nodes-base.gmail",
+      "position": [
+        1800,
+        620
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "support@company.com",
+        "subject": "={{ 'Medical Documents Need Support Follow-up - ' + $json.medical_review_summary.claim_reference_number }}",
+        "message": "={{ 'Dear Support Team,\\n\\nThe medical document package is not ready for insurance doctor review.\\n\\nClaim Reference Number:\\n' + $json.medical_review_summary.claim_reference_number + '\\n\\nClient Name:\\n' + $json.medical_review_summary.client_name + '\\n\\nDocument Readiness Status:\\n' + $json.doctor_review_readiness_status + '\\n\\nMissing Documents:\\n' + JSON.stringify($json.missing_documents) + '\\n\\nUnclear Information:\\n' + JSON.stringify($json.unclear_information) + '\\n\\nPlease follow up with the client or agent to complete the required medical documents.\\n\\nThank you.' }}",
+        "options": {}
+      },
+      "typeVersion": 2.1
+    },
+    {
+      "id": "f634a3a2-ae6c-4170-add9-f0eb2a477f6c",
+      "name": "Doctor Decision Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        240,
+        980
+      ],
+      "parameters": {
+        "color": 7,
+        "width": 680,
+        "height": 190,
+        "content": "## Doctor Review Decision Flow\n\nUse this second manual trigger to simulate the insurance doctor submitting a review decision.\n\nIf doctor_review_decision = Approved, the workflow notifies Support and Agent. Support receives a client notification draft."
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "77e19e1f-e1bf-44cf-8e1f-da3e973eda41",
+      "name": "Manual Trigger - Doctor Decision",
+      "type": "n8n-nodes-base.manualTrigger",
+      "position": [
+        240,
+        1240
+      ],
+      "parameters": {},
+      "typeVersion": 1
+    },
+    {
+      "id": "71dafae1-b98c-44aa-9a9f-d769189e0293",
+      "name": "Set Sample Doctor Decision",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        500,
+        1240
+      ],
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      client_name: \"Aisyah Binti Rahman\",\n      client_email: \"aisyahrahman@email.com\",\n      policy_number: \"POL-INS-2026-00981\",\n      claim_reference_number: \"CLM-2026-00452\",\n      doctor_name: \"Dr. Amir Hakim\",\n      doctor_review_decision: \"Approved\",\n      doctor_review_date: \"2026-05-18\",\n      doctor_review_notes: \"Medical documents reviewed and accepted for claim processing.\",\n      hospital_or_clinic: \"KPJ Specialist Hospital\",\n      treatment_date: \"2026-05-05\",\n      medical_leave_duration: \"6 days\",\n      xray_review_status: \"Not Applicable\",\n      support_email: \"support@company.com\",\n      agent_email: \"agent@company.com\"\n    }\n  }\n];"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "8a64a6f6-a84e-447e-9e23-9d9d36cd3d42",
+      "name": "IF - Doctor Approved",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        760,
+        1240
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "1c1e4790-0a7c-4cb7-a5c0-14c1577e405a",
+              "leftValue": "={{ $json.doctor_review_decision }}",
+              "rightValue": "Approved",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "d2efc209-aba1-41d6-9280-3b64961ca60a",
+      "name": "Generate Doctor Approval Notifications",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1020,
+        1140
+      ],
+      "parameters": {
+        "jsCode": "const input = $json;\n\nconst clientName = input.client_name || \"\";\nconst clientEmail = input.client_email || \"\";\nconst policyNumber = input.policy_number || \"\";\nconst claimRef = input.claim_reference_number || \"\";\nconst doctorName = input.doctor_name || \"\";\nconst decision = input.doctor_review_decision || \"\";\nconst reviewDate = input.doctor_review_date || \"\";\nconst notes = input.doctor_review_notes || \"\";\nconst hospital = input.hospital_or_clinic || \"\";\nconst treatmentDate = input.treatment_date || \"\";\nconst medicalLeaveDuration = input.medical_leave_duration || \"\";\nconst xrayStatus = input.xray_review_status || \"Unclear\";\nconst supportEmail = input.support_email || \"support@company.com\";\nconst agentEmail = input.agent_email || \"agent@company.com\";\n\nconst supportSubject = `Insurance Doctor Review Approved - ${claimRef}`;\n\nconst clientNotificationBodyDraft = `\nDear ${clientName},\n\nWe would like to inform you that the medical document review for your insurance claim has been completed.\n\nClaim Reference Number:\n${claimRef}\n\nThe submitted medical documents have been reviewed and approved by the insurance doctor.\n\nYour claim will proceed to the next insurance processing stage according to company procedures.\n\nPlease note that this notification does not confirm payment completion. Any further updates will be provided by the relevant insurance team.\n\nThank you.\n\nSupport Team\n`.trim();\n\nconst supportBody = `\nDear Support Team,\n\nThe insurance doctor has approved the medical document review for the following insurance claim.\n\nClaim Reference Number:\n${claimRef}\n\nClient Name:\n${clientName}\n\nClient Email:\n${clientEmail}\n\nPolicy Number:\n${policyNumber}\n\nDoctor Name:\n${doctorName}\n\nDoctor Review Decision:\n${decision}\n\nDoctor Review Date:\n${reviewDate}\n\nDoctor Review Notes:\n${notes}\n\nHospital / Clinic:\n${hospital}\n\nTreatment Date:\n${treatmentDate}\n\nMedical Leave Duration:\n${medicalLeaveDuration}\n\nX-ray Review Status:\n${xrayStatus}\n\nNext Action:\nPlease create and send a new notification to the client informing them that the medical document review has been completed and approved by the insurance doctor.\n\nClient Notification Draft:\n${clientNotificationBodyDraft}\n\nThank you.\n`.trim();\n\nconst agentSubject = `Medical Review Approved by Insurance Doctor - ${claimRef}`;\n\nconst agentBody = `\nDear Insurance Agent,\n\nThe insurance doctor has approved the medical document review for this claim.\n\nClaim Reference Number:\n${claimRef}\n\nClient Name:\n${clientName}\n\nPolicy Number:\n${policyNumber}\n\nDoctor Name:\n${doctorName}\n\nDoctor Review Decision:\n${decision}\n\nDoctor Review Date:\n${reviewDate}\n\nDoctor Review Notes:\n${notes}\n\nHospital / Clinic:\n${hospital}\n\nTreatment Date:\n${treatmentDate}\n\nMedical Leave Duration:\n${medicalLeaveDuration}\n\nX-ray Review Status:\n${xrayStatus}\n\nThe claim may proceed to the next insurance processing stage according to company procedure.\n\nThank you.\n`.trim();\n\nconst auditNote = `Medical document review for claim ${claimRef} was approved by ${doctorName} on ${reviewDate}. Support and agent notifications were prepared. Support is responsible for sending a new notification to the client.`;\n\nreturn [\n  {\n    json: {\n      doctor_review_approval_summary: {\n        client_name: clientName,\n        client_email: clientEmail,\n        policy_number: policyNumber,\n        claim_reference_number: claimRef,\n        doctor_name: doctorName,\n        doctor_review_decision: decision,\n        doctor_review_date: reviewDate,\n        doctor_review_notes: notes,\n        hospital_or_clinic: hospital,\n        treatment_date: treatmentDate,\n        medical_leave_duration: medicalLeaveDuration,\n        xray_review_status: xrayStatus\n      },\n      support_email: supportEmail,\n      agent_email: agentEmail,\n      support_notification_subject: supportSubject,\n      support_notification_body: supportBody,\n      agent_notification_subject: agentSubject,\n      agent_notification_body: agentBody,\n      client_notification_subject_draft: `Medical Document Review Completed - ${claimRef}`,\n      client_notification_body_draft: clientNotificationBodyDraft,\n      next_action: \"Support team to send new notification to client.\",\n      audit_note: auditNote\n    }\n  }\n];"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "9c1208a8-14e6-4901-876e-68db11513618",
+      "name": "Gmail - Notify Support Team",
+      "type": "n8n-nodes-base.gmail",
+      "position": [
+        1280,
+        1040
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{ $json.support_email }}",
+        "subject": "={{ $json.support_notification_subject }}",
+        "message": "={{ $json.support_notification_body }}",
+        "options": {}
+      },
+      "typeVersion": 2.1
+    },
+    {
+      "id": "ce431101-3c39-4218-b58d-73ad83734b98",
+      "name": "Gmail - Notify Insurance Agent",
+      "type": "n8n-nodes-base.gmail",
+      "position": [
+        1280,
+        1240
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{ $json.agent_email }}",
+        "subject": "={{ $json.agent_notification_subject }}",
+        "message": "={{ $json.agent_notification_body }}",
+        "options": {}
+      },
+      "typeVersion": 2.1
+    },
+    {
+      "id": "c531ec61-0a7d-47ee-892c-3042eccb0592",
+      "name": "Gmail - Notify Support Doctor Follow-up",
+      "type": "n8n-nodes-base.gmail",
+      "position": [
+        1020,
+        1360
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{ $json.support_email || 'support@company.com' }}",
+        "subject": "={{ 'Medical Review Needs Follow-up - ' + $json.claim_reference_number }}",
+        "message": "={{ 'Dear Support Team,\\n\\nThe insurance doctor has reviewed the medical documents and the case requires follow-up.\\n\\nClaim Reference Number:\\n' + $json.claim_reference_number + '\\n\\nClient Name:\\n' + $json.client_name + '\\n\\nDoctor Name:\\n' + $json.doctor_name + '\\n\\nDoctor Review Decision:\\n' + $json.doctor_review_decision + '\\n\\nDoctor Review Notes:\\n' + $json.doctor_review_notes + '\\n\\nPlease review the doctor notes and contact the client or insurance agent for next action.\\n\\nThank you.' }}",
+        "options": {}
+      },
+      "typeVersion": 2.1
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manual Trigger - Test Upload": {
+      "main": [
+        [
+          {
+            "node": "Set Sample Medical Claim Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Sample Medical Claim Data": {
+      "main": [
+        [
+          {
+            "node": "Prepare Medical Review Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Medical Review Data": {
+      "main": [
+        [
+          {
+            "node": "AI Agent - Medical Review Handoff",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent - Medical Review Handoff": {
+      "main": [
+        [
+          {
+            "node": "Parse Medical Review JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Medical Review JSON": {
+      "main": [
+        [
+          {
+            "node": "IF - Ready for Doctor Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Ready for Doctor Review": {
+      "main": [
+        [
+          {
+            "node": "Gmail - Send Package to Insurance Doctor",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Gmail - Notify Support Missing Documents",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent - Medical Review Handoff",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Window Buffer Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent - Medical Review Handoff",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger - Doctor Decision": {
+      "main": [
+        [
+          {
+            "node": "Set Sample Doctor Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Sample Doctor Decision": {
+      "main": [
+        [
+          {
+            "node": "IF - Doctor Approved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Doctor Approved": {
+      "main": [
+        [
+          {
+            "node": "Generate Doctor Approval Notifications",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Gmail - Notify Support Doctor Follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Doctor Approval Notifications": {
+      "main": [
+        [
+          {
+            "node": "Gmail - Notify Support Team",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Gmail - Notify Insurance Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "d201dcee-4329-496f-9a24-c48642abf736",
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "description": "Converted from Ask a Human template into Medical Document Review Handoff Automation."
+  },
+  "tags": [
+    {
+      "name": "insurance"
+    },
+    {
+      "name": "medical-review"
+    },
+    {
+      "name": "ai-automation"
+    }
+  ]
+}
